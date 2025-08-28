@@ -14,6 +14,8 @@ RCT_EXTERN_METHOD(startListening:(RCTPromiseResolveBlock)resolve
 RCT_EXTERN_METHOD(stopListening:(RCTPromiseResolveBlock)resolve
                  withRejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(getIsListening)
+
 + (BOOL)requiresMainQueueSetup
 {
   return NO;

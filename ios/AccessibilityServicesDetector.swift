@@ -1,3 +1,5 @@
+import Foundation
+
 @objc(AccessibilityServicesDetector)
 class AccessibilityServicesDetector: NSObject {
 
@@ -23,5 +25,11 @@ class AccessibilityServicesDetector: NSObject {
   func stopListening(resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) -> Void {
     // No-op for iOS - do nothing
     resolve(NSNull())
+  }
+
+  @objc(getIsListening)
+  func getIsListening() -> Bool {
+    // No-op for iOS - always return false
+    return false
   }
 }
