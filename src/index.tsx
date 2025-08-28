@@ -174,6 +174,14 @@ class AccessibilityServicesDetectorWrapper
       '[AccessibilityServicesDetector] Not Implemented for this platform'
     );
   }
+
+  public openAccessibilitySettings(): void {
+    if (Platform.OS !== 'android') {
+      this._logNotImplementedForPlatform();
+      return;
+    }
+    AccessibilityServicesDetectorModule.openAccessibilitySettings();
+  }
 }
 
 export * from './AccessibilityServicesDetector.types';
@@ -186,5 +194,8 @@ export const getEnabledAccessibilityServices =
 
 export const hasEnabledAccessibilityServices =
   AccessibilityServicesDetector.hasEnabledAccessibilityServices;
+
+export const openAppAccessibilitySettings =
+  AccessibilityServicesDetector.openAccessibilitySettings;
 
 export default AccessibilityServicesDetector;

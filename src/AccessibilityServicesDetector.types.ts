@@ -56,4 +56,9 @@ export interface IAccessibilityServicesDetector {
    * @returns Boolean indicating if listening is active
    */
   getIsListening(): boolean;
+  /**
+   * Open the accessibility settings for a specific app
+   * @param packageName - The package name of the app to open the settings for
+   */
+  openAccessibilitySettings(): void;
 }

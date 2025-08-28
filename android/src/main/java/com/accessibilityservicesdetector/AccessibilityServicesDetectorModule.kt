@@ -2,7 +2,9 @@ package com.accessibilityservicesdetector
 
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -29,6 +31,14 @@ class AccessibilityServicesDetectorModule(private val reactContext: ReactApplica
   @ReactMethod fun addListener(eventName: String) {}
 
   @ReactMethod fun removeListeners(count: Int) {}
+
+  @ReactMethod
+  fun openAccessibilitySettings() {
+    val context = reactContext
+    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    context.startActivity(intent)
+  }
 
   @ReactMethod
   fun getEnabledAccessibilityServices(promise: Promise) {

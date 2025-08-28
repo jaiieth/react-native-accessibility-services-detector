@@ -27,6 +27,12 @@ class AccessibilityServicesDetector: NSObject {
     resolve(NSNull())
   }
 
+  @objc(openAppAccessibilitySettings:)
+  func openAppAccessibilitySettings(packageName: String) -> Void {
+    // No-op for iOS - accessibility settings are not app-specific on iOS
+    print("openAppAccessibilitySettings called for package: \(packageName) - iOS does not support app-specific accessibility settings")
+  }
+
   @objc(getIsListening)
   func getIsListening() -> Bool {
     // No-op for iOS - always return false

@@ -184,6 +184,14 @@ Checks if any accessibility services are currently enabled.
 hasEnabledAccessibilityServices(): Promise<boolean>
 ```
 
+#### `openAccessibilitySettings()`
+
+Opens the accessibility settings.
+
+```typescript
+openAccessibilitySettings(): void
+```
+
 **Returns:** Promise that resolves to boolean (Android only, returns false on other platforms)
 
 #### `AccessibilityServicesDetector.addAccessibilityServicesListener(callback)`
@@ -263,114 +271,9 @@ AccessibilityServicesDetector.getIsListening(): boolean
 
 ### Android Requirements
 
-- **Minimum SDK:** API level 14 (Android 4.0)
-- **Target SDK:** API level 34 (Android 14)
+- **Minimum SDK:** API level 33 (Android 13)
 - **Permissions:** No special permissions required
 
-### Android Accessibility Services Detection
-
-The module can detect various types of accessibility services including:
-
-- **Screen readers** (TalkBack, Voice Assistant)
-- **Switch Access** services
-- **Magnification** services
-- **Custom accessibility services** from third-party apps
-- **Password managers** with accessibility features
-- **Automation tools** that use accessibility APIs
-
-## Examples
-
-### Complete Component Example
-
-```typescript
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Text, View } from 'react-native';
-import type { EmitterSubscription } from 'react-native';
-import AccessibilityServicesDetector, {
-  type AccessibilityServiceInfo,
-  getEnabledAccessibilityServices,
-  hasEnabledAccessibilityServices,
-} from 'react-native-accessibility-services-detector';
-
-export default function AccessibilityServiceDetector() {
-  const [services, setServices] = useState<AccessibilityServiceInfo[]>([]);
-  const [hasServices, setHasServices] = useState<boolean>(false);
-  const [isListening, setIsListening] = useState<boolean>(false);
-  const [subscription, setSubscription] = useState<EmitterSubscription | null>(null);
-
-  const refreshServices = useCallback(async () => {
-    try {
-      const enabledServices = await getEnabledAccessibilityServices();
-      const hasAnyServices = await hasEnabledAccessibilityServices();
-      
-      setServices(enabledServices);
-      setHasServices(hasAnyServices);
-    } catch (error) {
-      console.error('Failed to refresh services:', error);
-      Alert.alert('Error', 'Failed to get accessibility services');
-    }
-  }, []);
-
-  const startMonitoring = useCallback(async () => {
-    try {
-      const sub = await AccessibilityServicesDetector.addAccessibilityServicesListener((enabledServices) => {
-        setServices(enabledServices);
-        setHasServices(enabledServices.length > 0);
-      });
-      
-      setSubscription(sub);
-      setIsListening(true);
-      Alert.alert('Success', 'Started monitoring accessibility services');
-    } catch (error) {
-      console.error('Failed to start monitoring:', error);
-      Alert.alert('Error', 'Failed to start monitoring');
-    }
-  }, []);
-
-  const stopMonitoring = useCallback(() => {
-    if (subscription) {
-      AccessibilityServicesDetector.removeAccessibilityServicesListener(subscription);
-      setSubscription(null);
-      setIsListening(false);
-      Alert.alert('Success', 'Stopped monitoring accessibility services');
-    }
-  }, [subscription]);
-
-  useEffect(() => {
-    refreshServices();
-    return () => {
-      if (subscription) {
-        AccessibilityServicesDetector.removeAccessibilityServicesListener(subscription);
-      }
-    };
-  }, [refreshServices, subscription]);
-
-  return (
-    <View style={{ padding: 20 }}>
-      <Text>Accessibility Services: {hasServices ? 'Enabled' : 'Disabled'}</Text>
-      <Text>Service Count: {services.length}</Text>
-      <Text>Monitoring: {isListening ? 'Active' : 'Inactive'}</Text>
-      
-      <Button title="Refresh" onPress={refreshServices} />
-      <Button 
-        title={isListening ? 'Stop Monitoring' : 'Start Monitoring'}
-        onPress={isListening ? stopMonitoring : startMonitoring}
-      />
-      
-      {services.map((service) => (
-        <View key={service.id} style={{ marginTop: 10, padding: 10, backgroundColor: '#f0f0f0' }}>
-          <Text style={{ fontWeight: 'bold' }}>{service.appName || service.packageName}</Text>
-          <Text>Service: {service.serviceName}</Text>
-          <Text>Package: {service.packageName}</Text>
-          {service.feedbackTypeNames && (
-            <Text>Feedback: {service.feedbackTypeNames.join(', ')}</Text>
-          )}
-        </View>
-      ))}
-    </View>
-  );
-}
-```
 
 ## Troubleshooting
 

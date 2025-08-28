@@ -5,6 +5,7 @@ import {
   Alert,
   Button,
   Platform,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -115,7 +116,13 @@ export default function App(): React.JSX.Element {
     return (
       <View style={styles.servicesList}>
         {enabledServices.map((service) => (
-          <View key={service.id} style={styles.serviceItem}>
+          <Pressable
+            key={service.id}
+            style={styles.serviceItem}
+            onPress={() => {
+              AccessibilityServicesDetector.openAccessibilitySettings();
+            }}
+          >
             <Text style={styles.serviceTitle}>
               {service.appName || service.packageName}
             </Text>
@@ -141,7 +148,7 @@ export default function App(): React.JSX.Element {
                 {service.isEnabled ? '● ENABLED' : '○ DISABLED'}
               </Text>
             </View>
-          </View>
+          </Pressable>
         ))}
       </View>
     );
@@ -186,6 +193,14 @@ export default function App(): React.JSX.Element {
         </View>
 
         <View style={styles.buttonSection}>
+          <View style={styles.buttonContainer}>
+            <Button
+              title="Open Accessibility Settings"
+              onPress={() => {
+                AccessibilityServicesDetector.openAccessibilitySettings();
+              }}
+            />
+          </View>
           <View style={styles.buttonContainer}>
             <Button title="Refresh Status" onPress={refreshServiceStatus} />
           </View>
