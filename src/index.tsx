@@ -6,6 +6,7 @@ import {
 import type {
   AccessibilityServiceInfo,
   IAccessibilityServicesDetector,
+  RemoteAccessApp,
 } from './AccessibilityServicesDetector.types';
 import AccessibilityServicesDetectorModule from './AccessibilityServicesDetectorModule';
 
@@ -182,6 +183,14 @@ class AccessibilityServicesDetectorWrapper
     }
     AccessibilityServicesDetectorModule.openAccessibilitySettings();
   }
+
+  public getInstalledRemoteAccessApps(): Promise<RemoteAccessApp[]> {
+    if (Platform.OS !== 'android') {
+      this._logNotImplementedForPlatform();
+      return Promise.resolve([]);
+    }
+    return AccessibilityServicesDetectorModule.getInstalledRemoteAccessApps();
+  }
 }
 
 export * from './AccessibilityServicesDetector.types';
@@ -197,5 +206,8 @@ export const hasEnabledAccessibilityServices =
 
 export const openAppAccessibilitySettings =
   AccessibilityServicesDetector.openAccessibilitySettings;
+
+export const getInstalledRemoteAccessApps =
+  AccessibilityServicesDetector.getInstalledRemoteAccessApps;
 
 export default AccessibilityServicesDetector;

@@ -73,14 +73,14 @@ def enableProguardInReleaseBuilds = false
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 android {
-    ndkVersion rootProject.ext.ndkVersion
-    buildToolsVersion rootProject.ext.buildToolsVersion
-    compileSdk rootProject.ext.compileSdkVersion
+    ndkVersion = rootProject.ext.ndkVersion
+    buildToolsVersion = rootProject.ext.buildToolsVersion
+    compileSdk = rootProject.ext.compileSdkVersion
 
-    namespace "accessibilityservicesdetector.example"
+    namespace = "accessibilityservicesdetector.example"
     defaultConfig {
         applicationId "accessibilityservicesdetector.example"
-        minSdkVersion rootProject.ext.minSdkVersion
+        minSdkVersion = rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
@@ -95,12 +95,12 @@ android {
     }
     buildTypes {
         debug {
-            signingConfig signingConfigs.debug
+            signingConfig = signingConfigs.debug
         }
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig = signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
@@ -117,3 +117,10 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Apply accessibility services detector gradle script
+apply from: "../../../android/accessibility-queries.gradle"
+
+project.ext.accessibilityDetectorCustomPackages = [
+    "com.example.app",
+]

@@ -6,25 +6,31 @@ export enum AccessibilityServiceFeedbackType {
   FEEDBACK_VISUAL = 8,
   FEEDBACK_GENERIC = 16,
   FEEDBACK_BRAILLE = 32,
-  FEEDBACK_ALL_MASK = 63,
+  FEEDBACK_ALL_MASK = -1,
 }
 
 // Define accessibility service information structure
 export interface AccessibilityServiceInfo {
   /** Unique identifier for the service (e.g., "com.example.app/.MyService") */
   id: string;
+  /** Human-readable name of the service */
+  label: string;
+  /** Human-readable name of the app that owns this service */
+  appLabel: string;
+  /** Feedback types supported by this service */
+  feedbackType: AccessibilityServiceFeedbackType;
+  /** Human-readable name for the feedback type */
+  feedbackTypeNames: string;
+  /** Whether this service is an accessibility tool */
+  isAccessibilityTool?: boolean;
+  /** Whether this service is a system app */
+  isSystemApp: boolean;
   /** Package name of the app that owns this service */
   packageName: string;
-  /** Human-readable name of the service */
-  serviceName?: string;
-  /** Human-readable name of the app that owns this service */
-  appName?: string;
-  /** Whether this service is currently enabled */
-  isEnabled: boolean;
-  /** Feedback types supported by this service */
-  feedbackType?: AccessibilityServiceFeedbackType;
-  /** Human-readable name for the feedback type */
-  feedbackTypeNames?: string[];
+  /** Package name of the service */
+  serviceName: string;
+  /** Source directory of the app that owns this service */
+  sourceDir?: string;
 }
 
 // Define the native module interface
@@ -61,4 +67,15 @@ export interface IAccessibilityServicesDetector {
    * @param packageName - The package name of the app to open the settings for
    */
   openAccessibilitySettings(): void;
+
+  /**
+   * Get the list of installed remote access apps
+   * @returns Promise resolving to Array of remote access app information
+   */
+  getInstalledRemoteAccessApps(): Promise<RemoteAccessApp[]>;
+}
+
+export interface RemoteAccessApp {
+  packageName: string;
+  appName: string;
 }

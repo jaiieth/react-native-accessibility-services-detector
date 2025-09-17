@@ -3,7 +3,10 @@ package com.accessibilityservicesdetector
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Bundle
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import com.facebook.react.bridge.Promise
@@ -15,6 +18,104 @@ import com.facebook.react.bridge.WritableMap
 import com.facebook.react.bridge.WritableNativeArray
 import com.facebook.react.bridge.WritableNativeMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
+
+// data class RemoteAccessApp(val packageName: String, val appName: String)
+
+class RemoteAccessApp {
+  var packageName: String
+  var appName: String? = null
+
+  constructor(packageName: String, appName: String? = null) {
+    this.packageName = packageName
+    this.appName = appName
+  }
+}
+
+object RemoteAccessApps {
+  private val DEFAULT_REMOTE_ACCESS_APPS =
+          listOf(
+                  RemoteAccessApp("com.teamviewer.teamviewer.market.mobile"),
+                  RemoteAccessApp("com.teamviewer.quicksupport.market"),
+                  RemoteAccessApp("com.teamviewer.host.market"),
+                  RemoteAccessApp("com.anydesk.anydeskandroid"),
+                  RemoteAccessApp("com.rsupport.mvagent"),
+                  RemoteAccessApp("com.airdroid.mirroring"),
+                  RemoteAccessApp("com.sand.aircast"),
+                  RemoteAccessApp("com.sand.airmirror"),
+                  RemoteAccessApp("com.sand.airsos"),
+                  RemoteAccessApp("com.sand.aircasttv"),
+                  RemoteAccessApp("com.remotepc.viewer"),
+                  RemoteAccessApp("com.google.android.apps.chromeremotedesktop"),
+                  RemoteAccessApp("com.microsoft.rdc.android"),
+                  RemoteAccessApp("com.microsoft.intune"),
+                  RemoteAccessApp("com.realvnc.viewer.android"),
+                  RemoteAccessApp("com.iiordanov.bVNC"),
+                  RemoteAccessApp("com.logmein.rescue.mobileconsole"),
+                  RemoteAccessApp("com.airwatch.rm.agent.cloud"),
+                  RemoteAccessApp("com.splashtop.streamer.csrs"),
+                  RemoteAccessApp("com.splashtop.sos"),
+                  RemoteAccessApp("net.soti.mobicontrol.androidwork"),
+          )
+
+  /**
+   * Gets the combined list of default and custom remote access apps.
+   *
+   * Reads custom packages from manifest metadata injected by build scripts
+   */
+  fun getRemoteAccessApps(context: Context): List<RemoteAccessApp> {
+    val customPackages = getCustomPackagesFromMetadata(context)
+    val allApps = DEFAULT_REMOTE_ACCESS_APPS.toMutableList()
+
+    // Add custom packages as RemoteAccessApp objects
+    customPackages.forEach { packageName ->
+      if (allApps.none { it.packageName == packageName }) {
+        allApps.add(RemoteAccessApp(packageName))
+      }
+    }
+
+    android.util.Log.d("AccessibilityServicesDetector", 
+      "Using ${allApps.size} remote access apps (${DEFAULT_REMOTE_ACCESS_APPS.size} default + ${customPackages.size} custom)")
+    
+    return allApps
+  }
+
+  /**
+   * Reads custom packages from manifest metadata Returns list of custom package names from metadata
+   * injected by build scripts
+   */
+  private fun getCustomPackagesFromMetadata(context: Context): List<String> {
+    try {
+      val metadataBundle: Bundle? = context.packageManager
+        .getApplicationInfo(context.packageName, PackageManager.GET_META_DATA)
+        .metaData
+
+      if (metadataBundle == null) {
+        android.util.Log.d("AccessibilityServicesDetector", "No metadata found in manifest")
+        return emptyList()
+      }
+
+      val customPackagesString = metadataBundle.getString("com.accessibilityservicesdetector.CUSTOM_PACKAGES")
+      
+      if (customPackagesString.isNullOrEmpty()) {
+        android.util.Log.d("AccessibilityServicesDetector", "No custom packages found in metadata")
+        return emptyList()
+      }
+
+      val customPackages = customPackagesString.split(',')
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+
+      android.util.Log.d("AccessibilityServicesDetector", 
+        "Found ${customPackages.size} custom packages in metadata: $customPackages")
+      
+      return customPackages
+      
+    } catch (e: Exception) {
+      android.util.Log.e("AccessibilityServicesDetector", "Error reading custom packages from metadata", e)
+      return emptyList()
+    }
+  }
+}
 
 class AccessibilityServicesDetectorModule(private val reactContext: ReactApplicationContext) :
         ReactContextBaseJavaModule(reactContext) {
@@ -80,18 +181,25 @@ class AccessibilityServicesDetectorModule(private val reactContext: ReactApplica
 
       val accessibilityManager =
               reactContext.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        accessibilityServicesStateChangeListener =
+                AccessibilityManager.AccessibilityServicesStateChangeListener {
+                  sendAccessibilityServicesChangedEvent()
+                }
 
-      accessibilityServicesStateChangeListener =
-              AccessibilityManager.AccessibilityServicesStateChangeListener {
-                sendAccessibilityServicesChangedEvent()
-              }
+        accessibilityManager.addAccessibilityServicesStateChangeListener(
+                accessibilityServicesStateChangeListener!!
+        )
 
-      accessibilityManager.addAccessibilityServicesStateChangeListener(
-              accessibilityServicesStateChangeListener!!
-      )
-
-      isListening = true
-      promise.resolve(null)
+        isListening = true
+        promise.resolve(null)
+      } else {
+        android.util.Log.w(
+                NAME,
+                "AccessibilityServicesStateChangeListener requires API 33; current API ${Build.VERSION.SDK_INT}"
+        )
+        promise.resolve(null)
+      }
     } catch (e: Exception) {
       promise.reject(
               "START_LISTENING_ERROR",
@@ -109,12 +217,20 @@ class AccessibilityServicesDetectorModule(private val reactContext: ReactApplica
         return
       }
 
-      val accessibilityManager =
-              reactContext.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-      accessibilityManager.removeAccessibilityServicesStateChangeListener(
-              accessibilityServicesStateChangeListener!!
-      )
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val accessibilityManager =
+                reactContext.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+        accessibilityManager.removeAccessibilityServicesStateChangeListener(
+                accessibilityServicesStateChangeListener!!
+        )
+      } else {
+        android.util.Log.w(
+                NAME,
+                "AccessibilityServicesStateChangeListener removal requires API 33; current API ${Build.VERSION.SDK_INT}"
+        )
+      }
       accessibilityServicesStateChangeListener = null
+
       isListening = false
       promise.resolve(null)
     } catch (e: Exception) {
@@ -123,6 +239,61 @@ class AccessibilityServicesDetectorModule(private val reactContext: ReactApplica
               "Failed to stop listening for accessibility services changes",
               e
       )
+    }
+  }
+
+  private fun isPackageInstalled(packageName: String, packageManager: PackageManager): Boolean {
+    try {
+      packageManager.getPackageGids(packageName)
+      android.util.Log.d(NAME, "Package installed: $packageName")
+      return true
+    } catch (e: PackageManager.NameNotFoundException) {
+      android.util.Log.d(NAME, "Package not installed: $packageName $e")
+      return false
+    }
+  }
+
+  private fun getInstalledRemoteAccessApps(packageManager: PackageManager): List<RemoteAccessApp> {
+    val detectedApps = mutableListOf<RemoteAccessApp>()
+    try {
+      val remoteAccessApps = RemoteAccessApps.getRemoteAccessApps(reactContext)
+
+      remoteAccessApps.forEach { remoteApp ->
+        if (isPackageInstalled(remoteApp.packageName, packageManager)) {
+          val applicationInfo =
+                  packageManager
+                          .getApplicationInfo(remoteApp.packageName, 0)
+                          .loadLabel(packageManager)
+          remoteApp.appName = applicationInfo.toString()
+
+          detectedApps.add(remoteApp)
+          android.util.Log.d(
+                  NAME,
+                  "Detected remote access app: ${remoteApp.appName} (${remoteApp.packageName})"
+          )
+        }
+      }
+      return detectedApps
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "Error getting installed apps", e)
+      return emptyList()
+    }
+  }
+
+  @ReactMethod
+  fun getInstalledRemoteAccessApps(promise: Promise) {
+    try {
+      val installedApps = getInstalledRemoteAccessApps(reactContext.packageManager)
+      val installedAppsArray: WritableArray = WritableNativeArray()
+      for (pkg in installedApps) {
+        val map = WritableNativeMap()
+        map.putString("packageName", pkg.packageName)
+        map.putString("appName", pkg.appName)
+        installedAppsArray.pushMap(map)
+      }
+      promise.resolve(installedAppsArray)
+    } catch (e: Exception) {
+      promise.reject("GET_INSTALLED_APPS_ERROR", "Failed to get installed apps", e)
     }
   }
 
@@ -146,7 +317,6 @@ class AccessibilityServicesDetectorModule(private val reactContext: ReactApplica
                 createServiceInfoMap(
                         serviceInfo,
                         packageManager,
-                        enabledServicesList.contains(serviceInfo)
                 )
         enabledServices.add(serviceMap)
       }
@@ -159,46 +329,51 @@ class AccessibilityServicesDetectorModule(private val reactContext: ReactApplica
   }
 
   private fun createServiceInfoMap(
-          serviceInfo: AccessibilityServiceInfo,
+          a11yServiceInfo: AccessibilityServiceInfo,
           packageManager: PackageManager,
-          isEnabled: Boolean
   ): WritableMap {
     val map: WritableMap = WritableNativeMap()
 
     try {
-      val serviceId = serviceInfo.id
-      val packageName = serviceId.substringBeforeLast('/')
-      val serviceName = serviceId.substringAfterLast('/')
+      val serviceInfo = a11yServiceInfo.resolveInfo?.serviceInfo
 
-      // Basic service information
-      map.putString("id", serviceId)
+      val appLabel = serviceInfo?.applicationInfo?.loadLabel(packageManager).toString()
+      val packageName = serviceInfo?.packageName
+      val serviceName = serviceInfo?.name
+
+      val id = a11yServiceInfo.id
+      val label = a11yServiceInfo.resolveInfo?.loadLabel(packageManager).toString()
+
+      map.putString("id", id)
+      map.putString("label", label)
+      map.putString("appLabel", appLabel)
       map.putString("packageName", packageName)
       map.putString("serviceName", serviceName)
-      map.putBoolean("isEnabled", isEnabled)
 
-      // Try to get app name
-      try {
-        val appName = serviceInfo.resolveInfo?.loadLabel(packageManager)?.toString() ?: packageName
-        map.putString("appName", appName)
-      } catch (e: Exception) {
-        // If we can't get app name, leave it null
-        android.util.Log.w(NAME, "Could not get app name for package: $packageName", e)
-      }
+      // Service Info
+      map.putInt("feedbackType", a11yServiceInfo.feedbackType)
+      map.putString(
+              "feedbackTypeNames",
+              AccessibilityServiceInfo.feedbackTypeToString(a11yServiceInfo.feedbackType)
+      )
+      map.putBoolean("isAccessibilityTool", a11yServiceInfo.isAccessibilityTool)
 
-      // Feedback type information
-      val feedbackType = serviceInfo.feedbackType
-      map.putInt("feedbackType", feedbackType)
-
-      // Create human-readable feedback type names
-      val feedbackTypeNames = getFeedbackTypeNames(feedbackType)
-      val feedbackArray: WritableArray = WritableNativeArray()
-      feedbackTypeNames.forEach { feedbackArray.pushString(it) }
-      map.putArray("feedbackTypeNames", feedbackArray)
+      // App Info
+      val appInfo = a11yServiceInfo.resolveInfo?.serviceInfo?.applicationInfo
+      map.putString("sourceDir", appInfo?.sourceDir)
+      map.putBoolean("isSystemApp", isSystemApp(appInfo))
     } catch (e: Exception) {
-      android.util.Log.w(NAME, "Error creating service info map for: ${serviceInfo.id}", e)
+      android.util.Log.w(NAME, "Error creating service info map for: ${a11yServiceInfo.id}", e)
     }
 
     return map
+  }
+
+  private fun isSystemApp(appInfo: ApplicationInfo?): Boolean {
+    if (appInfo == null) return false
+    val appFlags = appInfo.flags
+    return (appFlags and ApplicationInfo.FLAG_SYSTEM) != 0 ||
+            (appFlags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
   }
 
   private fun getFeedbackTypeNames(feedbackType: Int): List<String> {
@@ -252,12 +427,21 @@ class AccessibilityServicesDetectorModule(private val reactContext: ReactApplica
     // Clean up listener when module is destroyed
     try {
       if (isListening && accessibilityServicesStateChangeListener != null) {
-        val accessibilityManager =
-                reactContext.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-        accessibilityManager.removeAccessibilityServicesStateChangeListener(
-                accessibilityServicesStateChangeListener!!
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          val accessibilityManager =
+                  reactContext.getSystemService(Context.ACCESSIBILITY_SERVICE) as
+                          AccessibilityManager
+          accessibilityManager.removeAccessibilityServicesStateChangeListener(
+                  accessibilityServicesStateChangeListener!!
+          )
+        } else {
+          android.util.Log.w(
+                  NAME,
+                  "AccessibilityServicesStateChangeListener removal requires API 33; current API ${Build.VERSION.SDK_INT}"
+          )
+        }
         accessibilityServicesStateChangeListener = null
+
         isListening = false
       }
     } catch (e: Exception) {

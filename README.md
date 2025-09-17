@@ -47,7 +47,9 @@ npx react-native link react-native-accessibility-services-detector
 import AccessibilityServicesDetector, {
   getEnabledAccessibilityServices,
   hasEnabledAccessibilityServices,
+  getInstalledRemoteAccessApps,
   type AccessibilityServiceInfo,
+  type RemoteAccessApp,
 } from 'react-native-accessibility-services-detector';
 
 // Check if any accessibility services are enabled
@@ -59,6 +61,12 @@ const checkServices = async () => {
     const services = await getEnabledAccessibilityServices();
     console.log('Enabled services:', services);
   }
+};
+
+// Check for installed remote access apps
+const checkRemoteAccessApps = async () => {
+  const installedApps = await getInstalledRemoteAccessApps();
+  console.log('Installed remote access apps:', installedApps);
 };
 ```
 
@@ -123,144 +131,73 @@ const stopMonitoring = async () => {
 
 ## API Reference
 
-### Types
+### Functions
+
+| Method | Signature | Description | Android | iOS |
+|--------|-----------|-------------|---------|-----|
+| `getEnabledAccessibilityServices()` | `(): Promise<AccessibilityServiceInfo[]>` | Returns list of enabled accessibility services | ✅ Array of services | ❌ Empty array |
+| `hasEnabledAccessibilityServices()` | `(): Promise<boolean>` | Checks if any accessibility services are enabled | ✅ `true`/`false` | ❌ Always `false` |
+| `getInstalledRemoteAccessApps()` | `(): Promise<RemoteAccessApp[]>` | Returns detected remote access applications¹ | ✅ Array of apps | ❌ Empty array |
+| `openAccessibilitySettings()` | `(): void` | Opens system accessibility settings | ✅ Opens settings | ❌ No-op |
+
+> ¹ **Android 11+ Requirements:** Requires [manifest queries configuration](#android-manifest-configuration) for package visibility.
+
+### AccessibilityServicesDetector
+
+Real-time monitoring class for accessibility service changes.
+
+| Method | Signature | Description | Android | iOS |
+|--------|-----------|-------------|---------|-----|
+| `addAccessibilityServicesListener()` | `(callback: (services: AccessibilityServiceInfo[]) => void): Promise<EmitterSubscription \| null>` | Adds listener and starts monitoring automatically | ✅ Returns subscription | ❌ Returns `null` |
+| `removeAccessibilityServicesListener()` | `(subscription: EmitterSubscription \| null): void` | Removes a previously added listener | ✅ Removes listener | ❌ No-op |
+| `startListening()` | `(): Promise<void>` | Manually starts listening for changes² | ✅ Starts monitoring | ❌ No-op |
+| `stopListening()` | `(): Promise<void>` | Manually stops listening for changes | ✅ Stops monitoring | ❌ No-op |
+| `getListenerCount()` | `(): number` | Returns number of active listeners | ✅ Listener count | ❌ Always `0` |
+| `getIsListening()` | `(): boolean` | Checks if currently listening for changes | ✅ `true`/`false` | ❌ Always `false` |
+
+> ² **Note:** Listeners added with `addAccessibilityServicesListener()` start automatically.
+
+### Type Definitions
 
 #### `AccessibilityServiceInfo`
 
-Information about an accessibility service:
+Information about an accessibility service.
 
-```typescript
-interface AccessibilityServiceInfo {
-  /** Unique identifier for the service (e.g., "com.example.app/.MyService") */
-  id: string;
-  /** Package name of the app that owns this service */
-  packageName: string;
-  /** Human-readable name of the service */
-  serviceName?: string;
-  /** Human-readable name of the app that owns this service */
-  appName?: string;
-  /** Whether this service is currently enabled */
-  isEnabled: boolean;
-  /** Feedback types supported by this service */
-  feedbackType?: AccessibilityServiceFeedbackType;
-  /** Human-readable names for the feedback types */
-  feedbackTypeNames?: string[];
-}
-```
+| Property | Type |  Description |
+|----------|------|-------------|
+| `id` | `string` | Unique service identifier (e.g., `"com.example.app/.MyService"`) |
+| `label` | `string` | Human-readable name of the service |
+| `appLabel` | `string` | Human-readable name of the app that owns this service |
+| `packageName` | `string` | Package name of the app that owns this service |
+| `serviceName` | `string` | Package name of the service |
+| `feedbackType` | `AccessibilityServiceFeedbackType` | Feedback types supported by this service |
+| `feedbackTypeNames` | `string` | Human-readable name for the feedback type |
+| `isAccessibilityTool` | `boolean` | Whether this service is an accessibility tool (optional) |
+| `isSystemApp` | `boolean` | Whether this service is a system app |
+| `sourceDir` | `string` | Source directory of the app that owns this service (optional) |
+
+#### `RemoteAccessApp`
+
+Information about a detected remote access application.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `packageName` | `string` | Package name of the remote access app |
+| `appName` | `string` | Human-readable app name |
 
 #### `AccessibilityServiceFeedbackType`
 
-Enum representing different types of accessibility feedback:
+Feedback types that accessibility services can provide.
 
-```typescript
-enum AccessibilityServiceFeedbackType {
-  FEEDBACK_SPOKEN = 1,    // Text-to-speech feedback
-  FEEDBACK_HAPTIC = 2,    // Vibration feedback
-  FEEDBACK_AUDIBLE = 4,   // Sound feedback
-  FEEDBACK_VISUAL = 8,    // Visual feedback
-  FEEDBACK_GENERIC = 16,  // Generic feedback
-  FEEDBACK_BRAILLE = 32,  // Braille feedback
-  FEEDBACK_ALL_MASK = 63, // All feedback types
-}
-```
-
-### Methods
-
-#### `getEnabledAccessibilityServices()`
-
-Gets the list of currently enabled accessibility services.
-
-```typescript
-getEnabledAccessibilityServices(): AccessibilityServiceInfo[]
-```
-
-**Returns:** Array of accessibility service information (Android only, returns empty array on other platforms)
-
-#### `hasEnabledAccessibilityServices()`
-
-Checks if any accessibility services are currently enabled.
-
-```typescript
-hasEnabledAccessibilityServices(): Promise<boolean>
-```
-
-#### `openAccessibilitySettings()`
-
-Opens the accessibility settings.
-
-```typescript
-openAccessibilitySettings(): void
-```
-
-**Returns:** Promise that resolves to boolean (Android only, returns false on other platforms)
-
-#### `AccessibilityServicesDetector.addAccessibilityServicesListener(callback)`
-
-Adds a listener for accessibility services changes and automatically starts listening.
-
-```typescript
-AccessibilityServicesDetector.addAccessibilityServicesListener(
-  callback: (enabledServices: AccessibilityServiceInfo[]) => void
-): Promise<EmitterSubscription | null>
-```
-
-**Parameters:**
-- `callback` - Function called when accessibility services change
-
-**Returns:** Promise that resolves to EmitterSubscription to remove the listener (null on non-Android platforms)
-
-#### `AccessibilityServicesDetector.removeAccessibilityServicesListener(subscription)`
-
-Removes a listener for accessibility services changes.
-
-```typescript
-AccessibilityServicesDetector.removeAccessibilityServicesListener(
-  subscription: EmitterSubscription | null
-): void
-```
-
-**Parameters:**
-- `subscription` - The subscription returned from `addAccessibilityServicesListener`
-
-#### `AccessibilityServicesDetector.startListening()`
-
-Manually starts listening for changes to accessibility services.
-
-```typescript
-AccessibilityServicesDetector.startListening(): Promise<void>
-```
-
-**Returns:** Promise that resolves when listening starts (no-op on non-Android platforms)
-
-#### `AccessibilityServicesDetector.stopListening()`
-
-Manually stops listening for changes to accessibility services.
-
-```typescript
-AccessibilityServicesDetector.stopListening(): Promise<void>
-```
-
-**Returns:** Promise that resolves when listening stops (no-op on non-Android platforms)
-
-#### `AccessibilityServicesDetector.getListenerCount()`
-
-Gets the current number of active listeners.
-
-```typescript
-AccessibilityServicesDetector.getListenerCount(): number
-```
-
-**Returns:** Number of active listeners (0 on non-Android platforms)
-
-#### `AccessibilityServicesDetector.getIsListening()`
-
-Checks if the detector is currently listening for changes.
-
-```typescript
-AccessibilityServicesDetector.getIsListening(): boolean
-```
-
-**Returns:** Boolean indicating if listening is active (false on non-Android platforms)
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `FEEDBACK_SPOKEN` | `1` | Text-to-speech feedback |
+| `FEEDBACK_HAPTIC` | `2` | Vibration feedback |
+| `FEEDBACK_AUDIBLE` | `4` | Sound feedback |
+| `FEEDBACK_VISUAL` | `8` | Visual feedback |
+| `FEEDBACK_GENERIC` | `16` | Generic feedback |
+| `FEEDBACK_BRAILLE` | `32` | Braille feedback |
+| `FEEDBACK_ALL_MASK` | `-1` | All feedback types combined |
 
 ## Platform Support
 
@@ -271,8 +208,119 @@ AccessibilityServicesDetector.getIsListening(): boolean
 
 ### Android Requirements
 
-- **Minimum SDK:** API level 33 (Android 13)
+- **Minimum SDK:** API level 33 (Android 13) for real-time monitoring
+- **Package Visibility:** Android 11+ (API 30+) requires manifest queries for `getInstalledRemoteAccessApps`
 - **Permissions:** No special permissions required
+
+### Android Manifest Configuration
+
+For Android 11+ (API 30+), if you want to use the `getInstalledRemoteAccessApps` method to detect remote access applications, you need to declare package queries in your app's `AndroidManifest.xml`. This is required due to package visibility restrictions.
+
+#### Option 1: Gradle Script (Recommended)
+
+Add the Gradle script to automatically inject the required queries:
+
+**In `android/app/build.gradle`:**
+```gradle
+// Apply accessibility services detector gradle script
+apply from: "../../node_modules/react-native-accessibility-services-detector/android/accessibility-queries.gradle"
+
+// Optional: Add custom packages to detect
+project.ext.accessibilityDetectorCustomPackages = [
+    'com.custom.remoteapp1',
+    'com.custom.remoteapp2'
+]
+
+// Optional: Disable logging (default: true)
+project.ext.accessibilityDetectorEnableLogging = false
+```
+
+This script will automatically:
+- Find your merged AndroidManifest.xml during build
+- Add the required `<queries>` declarations if missing
+- Include any custom packages you specify
+- Handle both new and existing `<queries>` sections
+- Work with any React Native project setup
+- Support configurable logging
+
+#### Option 2: Expo Config Plugin
+
+For Expo projects using prebuild, add the config plugin:
+
+**Basic configuration in `app.json`:**
+```json
+{
+  "expo": {
+    "plugins": [
+      "react-native-accessibility-services-detector/plugin"
+    ]
+  }
+}
+```
+
+**With custom packages in `app.config.js`:**
+```javascript
+export default {
+  expo: {
+    plugins: [
+      [
+        "react-native-accessibility-services-detector/plugin",
+        {
+          customPackages: [
+            "com.custom.remoteapp1",
+            "com.custom.remoteapp2"
+          ],
+          enableLogging: false // Optional, default: true
+        }
+      ]
+    ]
+  }
+}
+```
+
+Then run:
+```sh
+npx expo prebuild --clean
+```
+
+#### Option 3: Manual Configuration
+
+Add the following queries to your `android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <queries>
+    <package android:name="com.teamviewer.teamviewer.market.mobile"/>
+    <package android:name="com.teamviewer.quicksupport.market"/>
+    <package android:name="com.anydesk.anydeskandroid"/>
+    <package android:name="com.rsupport.mvagent"/>
+    <package android:name="com.airdroid.mirroring"/>
+    <package android:name="com.sand.aircast"/>
+    <package android:name="com.sand.airmirror"/>
+    <package android:name="com.sand.airsos"/>
+    <package android:name="com.sand.aircasttv"/>
+    <package android:name="com.remotepc.viewer"/>
+    <package android:name="com.google.android.apps.chromeremotedesktop"/>
+    <package android:name="com.microsoft.rdc.android"/>
+    <package android:name="com.microsoft.intune"/>
+    <package android:name="com.realvnc.viewer.android"/>
+    <package android:name="com.iiordanov.bVNC"/>
+    <package android:name="com.logmein.rescue.mobileconsole"/>
+    <package android:name="com.airwatch.rm.agent.cloud"/>
+    <package android:name="com.splashtop.streamer.csrs"/>
+    <package android:name="com.splashtop.sos"/>
+    <package android:name="net.soti.mobicontrol.androidwork"/>
+    <package android:name="com.example.app"/>
+  </queries>
+  
+  <!-- Your existing manifest content -->
+  <application>
+    <!-- ... -->
+  </application>
+</manifest>
+```
+
+> **Note:** The `<queries>` element must be placed at the root level of the manifest, outside the `<application>` tag.
 
 
 ## Troubleshooting
@@ -293,6 +341,21 @@ AccessibilityServicesDetector.getIsListening(): boolean
 3. **TypeScript errors**
    - Make sure TypeScript is properly configured in your project
    - The module includes comprehensive type definitions
+
+4. **`getInstalledRemoteAccessApps()` returns empty array on Android 11+**
+   ```
+   getInstalledRemoteAccessApps() returns [] even when remote access apps are installed
+   ```
+   - This is due to Android's package visibility restrictions (API 30+)
+   - You must add the required `<queries>` declarations to your app's AndroidManifest.xml
+   - Use the Gradle script, Expo config plugin, or manual configuration (see Android Manifest Configuration section)
+   - Verify the queries are present in your merged manifest: `android/app/build/intermediates/merged_manifests/debug/AndroidManifest.xml`
+
+5. **Gradle script not working**
+   - Make sure you're applying the script in the app module (`android/app/build.gradle`)
+   - Ensure the path to the script is correct: `"../../node_modules/react-native-accessibility-services-detector/android/accessibility-queries.gradle"`
+   - Clean and rebuild your project after adding the script
+   - Check the build output for AccessibilityServicesDetector log messages
 
 
 ## Contributing

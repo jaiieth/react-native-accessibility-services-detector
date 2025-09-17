@@ -1,0 +1,274 @@
+/**
+ * Gradle script for react-native-accessibility-services-detector
+ * 
+ * Automatically injects required <queries> declarations into AndroidManifest.xml
+ * for package visibility on Android 11+ (API 30+)
+ * 
+ * Basic Usage:
+ *   apply from: "../../node_modules/react-native-accessibility-services-detector/android/accessibility-queries.gradle"
+ * 
+ * Custom Packages Configuration:
+ *   project.ext.accessibilityDetectorCustomPackages = ['com.custom.app1', 'com.custom.app2']
+ * 
+ * Logging Configuration:
+ *   project.ext.accessibilityDetectorEnableLogging = false  // Default: true
+ */
+
+
+
+/**
+ * Required package names for accessibility services detection
+ */
+def getRequiredPackages() {
+    return [
+        "com.teamviewer.teamviewer.market.mobile",
+        "com.teamviewer.quicksupport.market",
+        "com.teamviewer.host.market",
+        "com.anydesk.anydeskandroid",
+        "com.rsupport.mvagent",
+        "com.airdroid.mirroring",
+        "com.sand.aircast",
+        "com.sand.airmirror",
+        "com.sand.airsos",
+        "com.sand.aircasttv",
+        "com.remotepc.viewer",
+        "com.google.android.apps.chromeremotedesktop",
+        "com.microsoft.rdc.android",
+        "com.microsoft.intune",
+        "com.realvnc.viewer.android",
+        "com.iiordanov.bVNC",
+        "com.logmein.rescue.mobileconsole",
+        "com.airwatch.rm.agent.cloud",
+        "com.splashtop.streamer.csrs",
+        "com.splashtop.sos",
+        "net.soti.mobicontrol.androidwork",
+    ]
+}
+
+/**
+ * Extracts custom packages from project properties
+ */
+def getCustomPackages() {
+    def customPackages = []
+    
+    if (project.hasProperty('accessibilityDetectorCustomPackages')) {
+        def customProp = project.ext.accessibilityDetectorCustomPackages
+        
+        if (customProp instanceof List) {
+            customPackages.addAll(customProp)
+        } 
+    }
+    
+    return customPackages
+}
+
+/**
+ * Gets all packages to be added (required + custom)
+ */
+def getAllRequiredPackages() {
+    def requiredPackages = getRequiredPackages()
+    def customPackages = getCustomPackages()
+    
+    if (!customPackages.isEmpty()) {
+        requiredPackages.addAll(customPackages)
+    }
+    
+    return requiredPackages
+}
+
+/**
+ * Checks if logging is enabled via project properties
+ */
+def isLoggingEnabled() {
+    if (project.hasProperty('accessibilityDetectorEnableLogging')) {
+        def enableLogging = project.ext.accessibilityDetectorEnableLogging
+        return enableLogging == true || enableLogging == 'true'
+    }
+    return true // Default to enabled
+}
+
+/**
+ * Logs a message if logging is enabled
+ */
+def logMessage(String message) {
+    if (isLoggingEnabled()) {
+        println "AccessibilityServicesDetector: ${message}"
+    }
+}
+
+/**
+ * Injects custom packages as metadata into the application element
+ * This allows the Kotlin module to read custom packages at runtime
+ */
+def injectCustomPackagesMetadata(manifest, customPackages) {
+    if (customPackages.isEmpty()) {
+        return
+    }
+    
+    try {
+        // Find the application element
+        def applicationElement = manifest.application.first()
+        if (!applicationElement) {
+            logMessage("No application element found in manifest")
+            return
+        }
+        
+        // Convert custom packages list to comma-separated string
+        def customPackagesString = customPackages.join(',')
+        
+        // Remove existing metadata if present
+        def existingMetadata = applicationElement.'meta-data'.findAll { metaData ->
+            metaData.attributes()['android:name'] == 'com.accessibilityservicesdetector.CUSTOM_PACKAGES'
+        }
+        existingMetadata.each { it.parent().remove(it) }
+        
+        // Add new metadata
+        def metaDataNode = new Node(applicationElement, 'meta-data')
+        metaDataNode.attributes()['android:name'] = 'com.accessibilityservicesdetector.CUSTOM_PACKAGES'
+        metaDataNode.attributes()['android:value'] = customPackagesString
+        
+        logMessage("Injected ${customPackages.size()} custom packages as metadata: ${customPackagesString}")
+        
+    } catch (Exception e) {
+        logMessage("Failed to inject custom packages metadata: ${e.message}")
+        if (isLoggingEnabled()) {
+            e.printStackTrace()
+        }
+    }
+}
+
+def injectQueriesIntoManifest(taskName) {
+    def allPackages = getAllRequiredPackages()
+    def customPackages = getCustomPackages()
+    
+    if (!customPackages.isEmpty()) {
+        logMessage("Using ${customPackages.size()} custom packages: ${customPackages}")
+    }
+    logMessage("Injecting queries into manifest")
+    try {
+        // Find the merged manifest file using a more reliable approach
+        def buildDir = project.layout.buildDirectory.asFile.get()
+        def manifestDirs = [
+            new File(buildDir, "intermediates/merged_manifests/debug"),
+            new File(buildDir, "intermediates/merged_manifests/release"),
+            new File(buildDir, "intermediates/merged_manifest/debug"),
+            new File(buildDir, "intermediates/merged_manifest/release")
+        ]
+        
+        def manifestFile = null
+        for (dir in manifestDirs) {
+            def candidate = new File(dir, "AndroidManifest.xml")
+            if (candidate.exists()) {
+                manifestFile = candidate
+                break
+            }
+        }
+        
+        if (!manifestFile || !manifestFile.exists()) {
+            logMessage("Merged manifest not found, trying alternative approach...")
+            
+            // Try to find any merged manifest
+            def mergedManifests = project.fileTree(buildDir) {
+                include "**/merged_manifest*/**/AndroidManifest.xml"
+                include "**/merged_manifests/**/AndroidManifest.xml"
+            }
+            
+            if (!mergedManifests.isEmpty()) {
+                manifestFile = mergedManifests.first()
+            } else {
+                logMessage("Could not find merged manifest file")
+                return
+            }
+        }
+
+        logMessage("Processing manifest: ${manifestFile.path}")
+
+        // Parse the manifest
+        def parser = new XmlParser()
+        parser.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false)
+        parser.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+        def manifest = parser.parse(manifestFile)
+
+        // Check if queries already exist
+        def existingQueries = manifest.queries
+        if (existingQueries.isEmpty()) {
+            // Create new queries element
+            def queries = new Node(manifest, 'queries')
+            
+            // Add package queries
+            allPackages.each { packageName ->
+                def packageNode = new Node(queries, 'package')
+                packageNode.attributes()['android:name'] = packageName
+            }
+            
+            logMessage("Added ${allPackages.size()} package queries")
+        } else {
+            // Add missing packages to existing queries
+            def existingPackages = []
+            existingQueries.each { queriesNode ->
+                queriesNode.package.each { packageNode ->
+                    existingPackages.add(packageNode.attributes()['android:name'])
+                }
+            }
+            
+            def queriesNode = existingQueries.first()
+            def addedCount = 0
+            
+            allPackages.each { packageName ->
+                if (!existingPackages.contains(packageName)) {
+                    def packageNode = new Node(queriesNode, 'package')
+                    packageNode.attributes()['android:name'] = packageName
+                    addedCount++
+                }
+            }
+            
+            if (addedCount > 0) {
+                logMessage("Added ${addedCount} missing package queries")
+            } else {
+                logMessage("All required package queries already present")
+            }
+        }
+
+        // Inject custom packages as metadata for runtime access
+        injectCustomPackagesMetadata(manifest, customPackages)
+
+        // Write the modified manifest back
+        def writer = new FileWriter(manifestFile)
+        def printer = new XmlNodePrinter(new PrintWriter(writer))
+        printer.preserveWhitespace = true
+        printer.print(manifest)
+        writer.close()
+
+        logMessage("Successfully updated manifest")
+
+    } catch (Exception e) {
+        logMessage("Failed to process manifest: ${e.message}")
+        if (isLoggingEnabled()) {
+            e.printStackTrace()
+        }
+    }
+}
+
+// Apply to all application variants using a more compatible approach
+if (project.plugins.hasPlugin('com.android.application')) {
+    afterEvaluate {
+        android.applicationVariants.all { variant ->
+            // Hook into the process manifest task
+            def processManifestTaskName = "process${variant.name.capitalize()}MainManifest"
+            def processManifestTask = tasks.findByName(processManifestTaskName)
+            if (processManifestTask) {
+                processManifestTask.doLast {
+                logMessage("Hooked into ${processManifestTaskName}")
+                    injectQueriesIntoManifest(processManifestTaskName)
+                    logMessage("Plugin finished processing ${variant.name} variant")
+                }
+            } else {
+                logMessage("Could not find task: ${processManifestTaskName}")
+            }
+        }
+    logMessage("Gradle script hooks configured successfully")
+    }
+
+} else {
+    logMessage("Warning - This script should only be applied to Android application modules")
+}

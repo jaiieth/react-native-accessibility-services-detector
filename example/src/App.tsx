@@ -16,6 +16,7 @@ import AccessibilityServicesDetector, {
   getEnabledAccessibilityServices,
   hasEnabledAccessibilityServices,
   type AccessibilityServiceInfo,
+  type RemoteAccessApp,
 } from 'react-native-accessibility-services-detector';
 
 export default function App(): React.JSX.Element {
@@ -27,6 +28,8 @@ export default function App(): React.JSX.Element {
   const subscription = useRef<EmitterSubscription | null>(null);
 
   const [lastUpdate, setLastUpdate] = useState<string>('Never');
+  const [installedApps, setInstalledApps] = useState<RemoteAccessApp[]>([]);
+  const [lastAppsUpdate, setLastAppsUpdate] = useState<string>('Never');
 
   const refreshServiceStatus = useCallback(async (): Promise<void> => {
     try {
@@ -124,7 +127,7 @@ export default function App(): React.JSX.Element {
             }}
           >
             <Text style={styles.serviceTitle}>
-              {service.appName || service.packageName}
+              {service.label || service.packageName}
             </Text>
             <Text style={styles.detailText}>
               Service Name: {service.serviceName}
@@ -132,27 +135,70 @@ export default function App(): React.JSX.Element {
             <Text style={styles.detailText}>
               Package Name: {service.packageName}
             </Text>
+
+            <Text style={styles.detailText}>
+              Is System App: {service.isSystemApp ? 'Yes' : 'No'}
+            </Text>
+            <Text style={styles.detailText}>
+              Source Dir: {service.sourceDir}
+            </Text>
+            <Text style={styles.detailText}>
+              Is Accessibility Tool:{' '}
+              {service.isAccessibilityTool ? 'Yes' : 'No'}
+            </Text>
+
             {service.feedbackTypeNames &&
               service.feedbackTypeNames.length > 0 && (
                 <Text style={styles.detailText}>
-                  Feedback: {service.feedbackTypeNames.join(', ')}
+                  {/* Feedback: {service.feedbackTypeNames?.join(', ')} */}
                 </Text>
               )}
-            <View style={styles.statusBadge}>
-              <Text
-                style={[
-                  styles.statusText,
-                  service.isEnabled ? styles.enabled : styles.disabled,
-                ]}
-              >
-                {service.isEnabled ? '● ENABLED' : '○ DISABLED'}
-              </Text>
-            </View>
           </Pressable>
         ))}
       </View>
     );
   };
+
+  const refreshRemoteAccessApps = useCallback(async (): Promise<void> => {
+    try {
+      const apps =
+        await AccessibilityServicesDetector.getInstalledRemoteAccessApps();
+      setInstalledApps(apps);
+      setLastAppsUpdate(new Date().toLocaleTimeString());
+    } catch (error) {
+      console.error('Failed to get installed apps:', error);
+      Alert.alert('Error', 'Failed to get installed remote access apps');
+    }
+  }, []);
+
+  const renderRemoteAppsList = (): React.ReactElement => {
+    if (installedApps.length === 0) {
+      return (
+        <Text style={styles.noServicesText}>
+          No remote access apps detected
+        </Text>
+      );
+    }
+
+    return (
+      <View style={styles.servicesList}>
+        {installedApps.map((app) => (
+          <View key={app.packageName} style={styles.serviceItem}>
+            <Text style={styles.serviceTitle}>{app.appName}</Text>
+            <Text style={styles.detailText}>
+              Package Name: {app.packageName}
+            </Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      refreshRemoteAccessApps();
+    }
+  }, [refreshRemoteAccessApps]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -192,6 +238,15 @@ export default function App(): React.JSX.Element {
           {renderServicesList()}
         </View>
 
+        <View style={styles.servicesSection}>
+          <Text style={styles.sectionTitle}>Installed Remote Access Apps</Text>
+          <Text style={styles.statusText}>
+            Apps Count: {installedApps.length}
+          </Text>
+          <Text style={styles.statusText}>Last Updated: {lastAppsUpdate}</Text>
+          {renderRemoteAppsList()}
+        </View>
+
         <View style={styles.buttonSection}>
           <View style={styles.buttonContainer}>
             <Button
@@ -209,6 +264,14 @@ export default function App(): React.JSX.Element {
             <Button
               title={isListening ? 'Stop Listening' : 'Start Listening'}
               onPress={isListening ? handleStopListening : handleStartListening}
+              disabled={Platform.OS !== 'android'}
+            />
+          </View>
+
+          <View style={styles.buttonContainer}>
+            <Button
+              title="Refresh Remote Access Apps"
+              onPress={refreshRemoteAccessApps}
               disabled={Platform.OS !== 'android'}
             />
           </View>

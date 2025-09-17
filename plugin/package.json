@@ -1,0 +1,32 @@
+{
+  "name": "react-native-accessibility-services-detector-plugin",
+  "version": "1.0.0",
+  "description": "Expo config plugin for react-native-accessibility-services-detector",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "files": [
+    "build",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build"
+  },
+  "keywords": [
+    "expo",
+    "config-plugin",
+    "react-native",
+    "accessibility",
+    "android"
+  ],
+  "author": "Earth Varis <midzty.rb128@gmail.com>",
+  "license": "MIT",
+  "peerDependencies": {
+    "@expo/config-plugins": ">=4.0.0",
+    "expo": ">=45.0.0"
+  },
+  "devDependencies": {
+    "@expo/config-plugins": "^7.0.0",
+    "typescript": "^5.0.0"
+  }
+}
