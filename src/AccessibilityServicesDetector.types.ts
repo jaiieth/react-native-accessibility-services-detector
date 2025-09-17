@@ -17,6 +17,8 @@ export interface AccessibilityServiceInfo {
   label: string;
   /** Human-readable name of the app that owns this service */
   appLabel: string;
+  /** PNG data URL for the app icon (if available) */
+  appIcon?: string;
   /** Feedback types supported by this service */
   feedbackType: AccessibilityServiceFeedbackType;
   /** Human-readable name for the feedback type */
@@ -78,4 +80,6 @@ export interface IAccessibilityServicesDetector {
 export interface RemoteAccessApp {
   packageName: string;
   appName: string;
+  /** PNG data URL for the app icon (if available) */
+  appIcon?: string;
 }

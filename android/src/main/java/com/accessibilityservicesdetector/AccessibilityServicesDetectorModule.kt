@@ -5,10 +5,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
+import android.util.Base64
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -18,6 +23,7 @@ import com.facebook.react.bridge.WritableMap
 import com.facebook.react.bridge.WritableNativeArray
 import com.facebook.react.bridge.WritableNativeMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import java.io.ByteArrayOutputStream
 
 // data class RemoteAccessApp(val packageName: String, val appName: String)
 
@@ -289,6 +295,15 @@ class AccessibilityServicesDetectorModule(private val reactContext: ReactApplica
         val map = WritableNativeMap()
         map.putString("packageName", pkg.packageName)
         map.putString("appName", pkg.appName)
+        // Add app icon as data URL if available
+        try {
+          val iconDataUrl = getAppIconDataUrl(reactContext.packageManager, pkg.packageName)
+          if (iconDataUrl != null) {
+            map.putString("appIcon", iconDataUrl)
+          }
+        } catch (e: Exception) {
+          android.util.Log.w(NAME, "Failed to load icon for ${pkg.packageName}", e)
+        }
         installedAppsArray.pushMap(map)
       }
       promise.resolve(installedAppsArray)
@@ -362,6 +377,18 @@ class AccessibilityServicesDetectorModule(private val reactContext: ReactApplica
       val appInfo = a11yServiceInfo.resolveInfo?.serviceInfo?.applicationInfo
       map.putString("sourceDir", appInfo?.sourceDir)
       map.putBoolean("isSystemApp", isSystemApp(appInfo))
+
+      // Add app icon as data URL if available
+      try {
+        if (packageName != null) {
+          val iconDataUrl = getAppIconDataUrl(packageManager, packageName)
+          if (iconDataUrl != null) {
+            map.putString("appIcon", iconDataUrl)
+          }
+        }
+      } catch (e: Exception) {
+        android.util.Log.w(NAME, "Failed to load icon for $packageName", e)
+      }
     } catch (e: Exception) {
       android.util.Log.w(NAME, "Error creating service info map for: ${a11yServiceInfo.id}", e)
     }
@@ -456,5 +483,44 @@ class AccessibilityServicesDetectorModule(private val reactContext: ReactApplica
 
   companion object {
     const val NAME = "AccessibilityServicesDetector"
+  }
+
+  /**
+   * Loads the application icon for the given package and returns it as a PNG data URL.
+   */
+  private fun getAppIconDataUrl(packageManager: PackageManager, packageName: String): String? {
+    return try {
+      val drawable: Drawable = packageManager.getApplicationIcon(packageName)
+      val bitmap = drawableToBitmap(drawable) ?: return null
+      val outputStream = ByteArrayOutputStream()
+      bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+      val byteArray = outputStream.toByteArray()
+      val base64 = Base64.encodeToString(byteArray, Base64.NO_WRAP)
+      "data:image/png;base64,$base64"
+    } catch (e: Exception) {
+      android.util.Log.w(NAME, "Error converting icon to data URL for $packageName", e)
+      null
+    }
+  }
+
+  /**
+   * Converts a Drawable to a Bitmap, preserving intrinsic size when possible.
+   */
+  private fun drawableToBitmap(drawable: Drawable): Bitmap? {
+    return try {
+      if (drawable is BitmapDrawable) {
+        return drawable.bitmap
+      }
+      val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 96
+      val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 96
+      val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+      val canvas = Canvas(bitmap)
+      drawable.setBounds(0, 0, canvas.width, canvas.height)
+      drawable.draw(canvas)
+      bitmap
+    } catch (e: Exception) {
+      android.util.Log.w(NAME, "Error converting drawable to bitmap", e)
+      null
+    }
   }
 }

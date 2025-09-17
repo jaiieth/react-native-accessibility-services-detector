@@ -168,6 +168,7 @@ Information about an accessibility service.
 | `id` | `string` | Unique service identifier (e.g., `"com.example.app/.MyService"`) |
 | `label` | `string` | Human-readable name of the service |
 | `appLabel` | `string` | Human-readable name of the app that owns this service |
+| `appIcon` | `string` | PNG data URL for the app icon (optional, Android only) |
 | `packageName` | `string` | Package name of the app that owns this service |
 | `serviceName` | `string` | Package name of the service |
 | `feedbackType` | `AccessibilityServiceFeedbackType` | Feedback types supported by this service |
@@ -184,6 +185,7 @@ Information about a detected remote access application.
 |----------|------|-------------|
 | `packageName` | `string` | Package name of the remote access app |
 | `appName` | `string` | Human-readable app name |
+| `appIcon` | `string` | PNG data URL for the app icon (optional, Android only) |
 
 #### `AccessibilityServiceFeedbackType`
 
@@ -292,6 +294,7 @@ Add the following queries to your `android/app/src/main/AndroidManifest.xml`:
   <queries>
     <package android:name="com.teamviewer.teamviewer.market.mobile"/>
     <package android:name="com.teamviewer.quicksupport.market"/>
+    <package android:name="com.teamviewer.host.market"/>
     <package android:name="com.anydesk.anydeskandroid"/>
     <package android:name="com.rsupport.mvagent"/>
     <package android:name="com.airdroid.mirroring"/>

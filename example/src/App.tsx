@@ -4,6 +4,7 @@ import type { EmitterSubscription } from 'react-native';
 import {
   Alert,
   Button,
+  Image,
   Platform,
   Pressable,
   SafeAreaView,
@@ -126,33 +127,47 @@ export default function App(): React.JSX.Element {
               AccessibilityServicesDetector.openAccessibilitySettings();
             }}
           >
-            <Text style={styles.serviceTitle}>
-              {service.label || service.packageName}
-            </Text>
-            <Text style={styles.detailText}>
-              Service Name: {service.serviceName}
-            </Text>
-            <Text style={styles.detailText}>
-              Package Name: {service.packageName}
-            </Text>
-
-            <Text style={styles.detailText}>
-              Is System App: {service.isSystemApp ? 'Yes' : 'No'}
-            </Text>
-            <Text style={styles.detailText}>
-              Source Dir: {service.sourceDir}
-            </Text>
-            <Text style={styles.detailText}>
-              Is Accessibility Tool:{' '}
-              {service.isAccessibilityTool ? 'Yes' : 'No'}
-            </Text>
-
-            {service.feedbackTypeNames &&
-              service.feedbackTypeNames.length > 0 && (
-                <Text style={styles.detailText}>
-                  {/* Feedback: {service.feedbackTypeNames?.join(', ')} */}
-                </Text>
+            <View style={styles.row}>
+              {service.appIcon ? (
+                <Image
+                  source={{ uri: service.appIcon }}
+                  style={styles.appIcon}
+                />
+              ) : (
+                <View style={styles.appIcon}>
+                  <Text style={styles.appIconText}>{service.appLabel[0]}</Text>
+                </View>
               )}
+              <View style={styles.flex1}>
+                <Text style={styles.serviceTitle}>
+                  {service.label || service.packageName}
+                </Text>
+                <Text style={styles.detailText}>
+                  Service Name: {service.serviceName}
+                </Text>
+                <Text style={styles.detailText}>
+                  Package Name: {service.packageName}
+                </Text>
+
+                <Text style={styles.detailText}>
+                  Is System App: {service.isSystemApp ? 'Yes' : 'No'}
+                </Text>
+                <Text style={styles.detailText}>
+                  Source Dir: {service.sourceDir}
+                </Text>
+                <Text style={styles.detailText}>
+                  Is Accessibility Tool:{' '}
+                  {service.isAccessibilityTool ? 'Yes' : 'No'}
+                </Text>
+
+                {service.feedbackTypeNames &&
+                  service.feedbackTypeNames.length > 0 && (
+                    <Text style={styles.detailText}>
+                      {/* Feedback: {service.feedbackTypeNames?.join(', ')} */}
+                    </Text>
+                  )}
+              </View>
+            </View>
           </Pressable>
         ))}
       </View>
@@ -163,6 +178,7 @@ export default function App(): React.JSX.Element {
     try {
       const apps =
         await AccessibilityServicesDetector.getInstalledRemoteAccessApps();
+      console.log('🚀 | apps:', apps);
       setInstalledApps(apps);
       setLastAppsUpdate(new Date().toLocaleTimeString());
     } catch (error) {
@@ -184,10 +200,23 @@ export default function App(): React.JSX.Element {
       <View style={styles.servicesList}>
         {installedApps.map((app) => (
           <View key={app.packageName} style={styles.serviceItem}>
-            <Text style={styles.serviceTitle}>{app.appName}</Text>
-            <Text style={styles.detailText}>
-              Package Name: {app.packageName}
-            </Text>
+            <View style={styles.row}>
+              {app.appIcon ? (
+                <Image source={{ uri: app.appIcon }} style={styles.appIcon} />
+              ) : (
+                <View style={styles.appIcon}>
+                  <Text style={styles.appIconText}>
+                    {app.packageName.slice(0, 2)}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.flex1}>
+                <Text style={styles.serviceTitle}>{app.appName}</Text>
+                <Text style={styles.detailText}>
+                  Package Name: {app.packageName}
+                </Text>
+              </View>
+            </View>
           </View>
         ))}
       </View>
@@ -409,11 +438,33 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: '#28a745',
   },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  flex1: {
+    flex: 1,
+  },
   serviceTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#212529',
     marginBottom: 4,
+  },
+  appIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 888,
+    marginRight: 12,
+    backgroundColor: '#e9ecef',
+  },
+  appIconText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212529',
+    textAlign: 'center',
+    height: '100%',
+    textAlignVertical: 'center',
   },
   detailText: {
     fontSize: 12,

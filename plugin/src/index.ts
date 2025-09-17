@@ -57,6 +57,7 @@ export interface AccessibilityServicesDetectorPluginOptions {
 const REQUIRED_PACKAGES = [
   'com.teamviewer.teamviewer.market.mobile',
   'com.teamviewer.quicksupport.market',
+  'com.teamviewer.host.market',
   'com.anydesk.anydeskandroid',
   'com.rsupport.mvagent',
   'com.airdroid.mirroring',
