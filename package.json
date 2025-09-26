@@ -1,6 +1,6 @@
 {
   "name": "react-native-accessibility-services-detector",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A React Native module for detecting enabled accessibility services on Android platform with real-time monitoring capabilities. Supports both old and new React Native architecture.",
   "source": "./src/index.tsx",
   "main": "./lib/module/index.js",
